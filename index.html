@@ -72,6 +72,26 @@
             width: 0%;
             transition: width 1s ease-out;
         }
+        
+        .connect-flash {
+            animation: flash 0.5s ease-out;
+        }
+        @keyframes flash {
+            0% { background-color: rgba(16, 185, 129, 0.4); }
+            100% { background-color: transparent; }
+        }
+
+        #ai-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.8);
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+        #ai-chat-container {
+            max-height: 80vh;
+        }
     </style>
 </head>
 <body class="pb-24">
@@ -86,26 +106,30 @@
                 <h1 class="text-md font-black tracking-tighter uppercase" data-key="app_title">She Farm</h1>
             </div>
 
-            <div class="flex bg-slate-100 rounded-lg p-1">
-                <button onclick="setLanguage('en')" id="btn-en" class="px-3 py-1 rounded-md text-[10px] font-black transition-all bg-emerald-600 text-white">EN</button>
-                <button onclick="setLanguage('am')" id="btn-am" class="px-3 py-1 rounded-md text-[10px] font-black transition-all text-slate-400">አማ</button>
+            <div class="flex items-center gap-3">
+                <button onclick="openAIChat()" class="bg-blue-600 text-white p-2 rounded-full shadow-lg hover:bg-blue-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
+                </button>
+                <div class="flex bg-slate-100 rounded-lg p-1">
+                    <button onclick="setLanguage('en')" id="btn-en" class="px-3 py-1 rounded-md text-[10px] font-black transition-all bg-emerald-600 text-white">EN</button>
+                    <button onclick="setLanguage('am')" id="btn-am" class="px-3 py-1 rounded-md text-[10px] font-black transition-all text-slate-400">አማ</button>
+                </div>
             </div>
         </div>
     </header>
 
-    <main class="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
+    <main id="main-content" class="max-w-2xl mx-auto p-4 md:p-6 space-y-6 transition-colors duration-500">
 
         <!-- PAGE 1: DASHBOARD (SCANNING) -->
         <section id="page-dashboard" class="page page-active space-y-6">
             <div class="flex justify-between items-center px-2">
                 <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight" data-key="nav_scan">Scanner</h2>
-                <div class="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full">
+                <div id="status-indicator" class="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full cursor-pointer" onclick="triggerConnectSound()">
                     <div class="status-dot animate-pulse"></div>
                     <span class="text-[10px] font-bold text-emerald-700 uppercase" data-key="status_ready">Device Ready</span>
                 </div>
             </div>
 
-            <!-- Main Control -->
             <button id="readBtn" class="tactile-btn w-full bg-emerald-600 text-white py-8 rounded-[2rem] flex flex-col items-center justify-center gap-3">
                 <div class="p-3 bg-white/20 rounded-full">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -115,7 +139,6 @@
                 <span class="text-lg font-black tracking-widest" data-key="btn_scan">START SOIL PROBE</span>
             </button>
 
-            <!-- Primary Metrics -->
             <div class="grid grid-cols-2 gap-4">
                 <div class="glass-card p-6 shadow-sm border-b-4 border-emerald-500">
                     <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest" data-key="label_health">Health Score</span>
@@ -132,12 +155,9 @@
                 </div>
             </div>
 
-            <!-- NPK Grid -->
             <div class="glass-card p-6 space-y-4">
                 <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest" data-key="label_nutrients">Soil Nutrients (NPK)</h3>
-                
                 <div class="space-y-4">
-                    <!-- Nitrogen -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-xs font-black text-slate-600">Nitrogen (N)</span>
@@ -147,7 +167,6 @@
                             <div id="bar-n" class="nutrient-fill bg-emerald-500"></div>
                         </div>
                     </div>
-                    <!-- Phosphorus -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-xs font-black text-slate-600">Phosphorus (P)</span>
@@ -157,7 +176,6 @@
                             <div id="bar-p" class="nutrient-fill bg-amber-500"></div>
                         </div>
                     </div>
-                    <!-- Potassium -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
                             <span class="text-xs font-black text-slate-600">Potassium (K)</span>
@@ -201,7 +219,6 @@
                     </div>
                 </div>
 
-                <!-- ADVICE SECTION -->
                 <div class="p-6 bg-emerald-50 border-b border-emerald-100">
                     <div class="flex items-center gap-2 mb-3">
                         <div class="w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center text-white">
@@ -232,6 +249,34 @@
 
     </main>
 
+    <!-- AI Chat Modal -->
+    <div id="ai-modal" class="flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col" id="ai-chat-container">
+            <div class="bg-blue-600 p-4 flex justify-between items-center text-white">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M12 8V4H8"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>
+                    <span class="font-black text-sm uppercase tracking-widest">She Farm AI</span>
+                </div>
+                <button onclick="closeAIChat()" class="p-1 hover:bg-white/20 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div id="ai-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 min-h-[300px]">
+                <div class="bg-blue-100 text-blue-900 p-3 rounded-2xl rounded-tl-none text-xs font-medium max-w-[80%]">
+                    Hello! I am your AI Agronomist. Ask me anything about your soil data, what to plant, or pest control.
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-100 flex gap-2">
+                <input type="text" id="ai-input" placeholder="Ask about your soil..." class="flex-1 bg-slate-100 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <button onclick="sendAIMessage()" id="ai-send-btn" class="bg-blue-600 text-white p-2 rounded-xl">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Bottom Navigation Bar -->
     <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 z-50">
         <div class="max-w-2xl mx-auto flex justify-around items-center">
@@ -247,14 +292,106 @@
     </nav>
 
     <script>
-        // --- Sound Engine ---
+        const apiKey = ""; 
+        const FARMER_ID = "FM-2024-X992";
+        const PLOT_COORD = "9.0222° N, 38.7468° E";
+
+        async function callGemini(userQuery) {
+            const latestReading = history[history.length - 1] || { health: 'No data', ph: 'No data', n: 0, p: 0, k: 0 };
+            const systemPrompt = `You are the She Farm AI Assistant, an expert agronomist for Ethiopian farmers.
+            Current Soil Context:
+            - Health Score: ${latestReading.health}/100
+            - pH: ${latestReading.ph}
+            - Nitrogen: ${latestReading.n}%
+            - Phosphorus: ${latestReading.p}%
+            - Potassium: ${latestReading.k}%
+            
+            Provide short, clear, and scientific advice. If the user asks in Amharic, respond in Amharic. If in English, respond in English. Be practical about resources available to smallholder farmers.`;
+
+            let retries = 0;
+            const delays = [1000, 2000, 4000, 8000, 16000];
+
+            while (retries < 5) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: userQuery }] }],
+                            systemInstruction: { parts: [{ text: systemPrompt }] }
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('API Error');
+                    const result = await response.json();
+                    return result.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't process that. Try again.";
+                } catch (err) {
+                    await new Promise(res => setTimeout(res, delays[retries]));
+                    retries++;
+                }
+            }
+            return "Sorry, connection lost. Check your internet.";
+        }
+
+        function openAIChat() {
+            playSound('click');
+            document.getElementById('ai-modal').style.display = 'flex';
+        }
+
+        function closeAIChat() {
+            playSound('click');
+            document.getElementById('ai-modal').style.display = 'none';
+        }
+
+        async function sendAIMessage() {
+            const input = document.getElementById('ai-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            const container = document.getElementById('ai-messages');
+            
+            const userDiv = document.createElement('div');
+            userDiv.className = "bg-slate-200 text-slate-800 p-3 rounded-2xl rounded-tr-none text-xs font-medium max-w-[80%] self-end ml-auto";
+            userDiv.innerText = message;
+            container.appendChild(userDiv);
+            
+            input.value = "";
+            container.scrollTop = container.scrollHeight;
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = "bg-blue-100 text-blue-900 p-3 rounded-2xl rounded-tl-none text-xs font-medium max-w-[80%] italic animate-pulse";
+            loadingDiv.innerText = "Consulting agronomist database...";
+            container.appendChild(loadingDiv);
+            container.scrollTop = container.scrollHeight;
+
+            const response = await callGemini(message);
+            
+            container.removeChild(loadingDiv);
+            const aiDiv = document.createElement('div');
+            aiDiv.className = "bg-blue-100 text-blue-900 p-3 rounded-2xl rounded-tl-none text-xs font-medium max-w-[80%]";
+            aiDiv.innerText = response;
+            container.appendChild(aiDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
         function playSound(type) {
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
             const now = audioCtx.currentTime;
-            if (type === 'click') {
+
+            if (type === 'connect') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+                gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'click') {
                 osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
                 gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
                 osc.start(now); osc.stop(now + 0.1);
@@ -269,12 +406,17 @@
             }
         }
 
-        // --- Agronomic Intelligence Engine ---
+        function triggerConnectSound() {
+            playSound('connect');
+            const main = document.getElementById('main-content');
+            main.classList.add('connect-flash');
+            setTimeout(() => main.classList.remove('connect-flash'), 500);
+        }
+
         function getScienceBasedAdvice(reading, lang) {
             let advice = [];
             const ph = parseFloat(reading.ph);
 
-            // pH Analysis
             if (ph < 5.5) {
                 advice.push(lang === 'en' 
                     ? `[PH ANALYSIS] Critical Acidity (pH ${ph}): Highly acidic soil limits phosphorus availability and risks aluminum toxicity. ACTION: Apply 4-5 tons/ha of Agricultural Lime (CaCO3) to neutralize acidity.`
@@ -285,25 +427,10 @@
                     : `[የፒኤች ትንተና] ከፍተኛ አልካላይንነት (pH ${ph})፡ አፈሩ ጨዋማነት ስላለው ተክሎች ብረትና ዚንክ እንዳያገኙ ያግዳል። መፍትሄ፡ ኦርጋኒክ ኮምፖስት እና የሰልፈር ንጥረ ነገር ይጠቀሙ።`);
             }
 
-            // Nitrogen Analysis
             if (reading.n < 40) {
                 advice.push(lang === 'en'
                     ? `[NITROGEN] Deficiency (${reading.n}%): Essential for leafy growth and chlorophyll production. ACTION: Top-dress with 100kg/ha of Urea or integrate leguminous cover crops (beans/peas) for natural fixation.`
                     : `[ናይትሮጅን] የናይትሮጅን እጥረት (${reading.n}%)፡ ለተክሉ ቅጠል እድገት ወሳኝ ነው። መፍትሄ፡ 100 ኪሎ ዩሪያ በሄክታር በመጨመር ወይም ባቄላና አተርን በማፈራረቅ በመዝራት ማሻሻል ይቻላል።`);
-            }
-
-            // Phosphorus Analysis
-            if (reading.p < 40) {
-                advice.push(lang === 'en'
-                    ? `[PHOSPHORUS] Deficiency (${reading.p}%): Crucial for root development and energy transfer (ATP). ACTION: Apply DAP (Diammonium Phosphate) at 100kg/ha during sowing to stimulate root health.`
-                    : `[ፎስፈረስ] የፎስፈረስ እጥረት (${reading.p}%)፡ ለተክሉ ስር እድገትና ጥንካሬ አስፈላጊ ነው። መፍትሄ፡ በሚዘሩበት ጊዜ 100 ኪሎ DAP በሄክታር ይጠቀሙ።`);
-            }
-
-            // Potassium Analysis
-            if (reading.k < 40) {
-                advice.push(lang === 'en'
-                    ? `[POTASSIUM] Deficiency (${reading.k}%): Important for water regulation and disease resistance. ACTION: Apply Muriate of Potash (MOP) at 50kg/ha to improve fruit/grain quality.`
-                    : `[ፖታሺየም] የፖታሺየም እጥረት (${reading.k}%)፡ ተክሉ በሽታን እንዲቋቋም ይረዳል። መፍትሄ፡ 50 ኪሎ MOP በሄክታር በመጨመር ምርታማነትን ይጨምሩ።`);
             }
 
             if (advice.length === 0) {
@@ -315,42 +442,17 @@
             return advice.join('\n\n');
         }
 
-        // --- PDF Generation ---
         function generatePDF() {
             playSound('click');
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            const dateStr = new Date().toLocaleString();
-            const latest = history[history.length - 1];
+            const MAX_PAGES = 3;
+            const ROWS_PER_PAGE = 18;
             
-            // 1. Professional Header
-            doc.setFillColor(5, 150, 105); 
-            doc.rect(0, 0, 210, 40, 'F');
+            const maxAllowedRows = (MAX_PAGES - 1) * ROWS_PER_PAGE;
+            const limitedHistory = history.slice(-maxAllowedRows).reverse();
             
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.setFont("helvetica", "bold");
-            doc.text("SHE FARM", 20, 25);
-            
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "normal");
-            doc.text("SMART SOIL ANALYSIS & AGRONOMIC REPORT", 20, 32);
-
-            // 2. Metadata
-            doc.setTextColor(15, 23, 42); 
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.text("REPORT INFORMATION", 20, 50);
-            doc.setFont("helvetica", "normal");
-            doc.text(`Farmer ID: SF-COMM-8821`, 20, 56);
-            doc.text(`Plot Location: Addis Ababa Region (9.0222 N, 38.7468 E)`, 20, 62);
-            doc.text(`Generated: ${dateStr}`, 20, 68);
-
-            // 3. Results Table
-            doc.setFont("helvetica", "bold");
-            doc.text("ANALYTICAL RESULTS", 20, 80);
-            
-            const tableData = history.slice().reverse().map((item, idx) => [
+            const tableData = limitedHistory.map((item) => [
                 item.time,
                 item.health,
                 item.ph,
@@ -359,48 +461,85 @@
                 item.k + "%"
             ]);
 
-            doc.autoTable({
-                startY: 85,
-                head: [['Time', 'Health', 'pH', 'Nitrogen', 'Phosphorus', 'Potassium']],
-                body: tableData,
-                headStyles: { fillColor: [5, 150, 105] },
-                margin: { left: 20, right: 20 }
-            });
-
-            // 4. Detailed Agronomic Recommendations (THE CORE REQUEST)
-            const finalY = doc.lastAutoTable.finalY || 100;
+            // --- PAGE 1: HEADER & AGRONOMIC ADVICE (SEPARATE PAGE) ---
+            doc.setFillColor(5, 150, 105); 
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
-            doc.text("AGRONOMIC RECOMMENDATIONS & SCIENCE EXPLANATION", 20, finalY + 15);
-            
-            doc.setFont("helvetica", "normal");
+            doc.text("SHE FARM", 20, 25);
             doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("OFFICIAL SOIL & AGRONOMIC ADVISORY", 20, 32);
+
+            doc.setTextColor(40, 40, 40);
             
-            // Get the advice currently shown in the app UI
-            const adviceText = document.getElementById('advice-text').innerText;
+            // REPORT INFORMATION SECTION
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "bold");
+            doc.text("REPORT INFORMATION", 20, 55);
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, 58, 100, 58);
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Farmer ID: ${FARMER_ID}`, 20, 65);
+            doc.text(`Plot Location: ${PLOT_COORD}`, 20, 71);
+            doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 77);
             
-            // Auto-wrap text for PDF
+            // Advice Section
+            doc.setFillColor(240, 253, 244);
+            doc.rect(15, 90, 180, 100, 'F');
+            doc.setTextColor(5, 46, 22);
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text("Agronomic Recommendations", 20, 100);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            const adviceText = history.length > 0 
+                ? getScienceBasedAdvice(history[history.length-1], currentLang)
+                : "No recent scans available for recommendation.";
+            
             const splitAdvice = doc.splitTextToSize(adviceText, 170);
-            
-            // Draw a light background for advice
-            doc.setFillColor(248, 250, 252);
-            const adviceHeight = (splitAdvice.length * 5) + 10;
-            doc.rect(20, finalY + 18, 170, adviceHeight, 'F');
-            
-            doc.setTextColor(5, 46, 22); // Dark green text
-            doc.text(splitAdvice, 25, finalY + 25);
+            doc.text(splitAdvice, 20, 110);
 
-            // 5. Footer
-            const pageHeight = doc.internal.pageSize.height;
-            doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184);
-            doc.text("She Farm Intelligence Platform - Automated Agronomic Engine v2.1", 20, pageHeight - 15);
-            doc.text("Page 1 of 1", 180, pageHeight - 15);
+            doc.setTextColor(100, 100, 100);
+            doc.text("Note: Full history logs provided on the following page.", 20, 275);
+            doc.text("Page 1", 180, 285);
 
-            doc.save(`SheFarm_Full_Report_${Date.now()}.pdf`);
+            // --- PAGE 2 & 3: HISTORY LOGS ---
+            if (tableData.length > 0) {
+                doc.addPage();
+                doc.setTextColor(40, 40, 40);
+                doc.setFontSize(14);
+                doc.setFont("helvetica", "bold");
+                doc.text("Soil Fertility History Log", 20, 20);
+                
+                doc.autoTable({
+                    startY: 30,
+                    head: [['Time', 'Health', 'pH', 'Nitrogen', 'Phosphorus', 'Potassium']],
+                    body: tableData,
+                    headStyles: { fillColor: [5, 150, 105], textColor: [255, 255, 255] },
+                    margin: { left: 20, right: 20 },
+                    didDrawPage: function(data) {
+                        const pageCount = doc.internal.getNumberOfPages();
+                        if (pageCount > MAX_PAGES) return false;
+                        
+                        doc.setFontSize(10);
+                        doc.setTextColor(150, 150, 150);
+                        doc.text("Page " + pageCount, 180, 285);
+                    }
+                });
+            }
+
+            while(doc.internal.getNumberOfPages() > MAX_PAGES) {
+                doc.deletePage(doc.internal.getNumberOfPages());
+            }
+
+            doc.save(`SheFarm_SoilReport_${Date.now()}.pdf`);
         }
 
-        // --- i18n ---
         const i18n = {
             en: {
                 app_title: "She Farm",
@@ -470,7 +609,6 @@
             document.getElementById(`nav-${pageId}`).classList.add('nav-active');
         }
 
-        // --- Logic ---
         const ctx = document.getElementById('fertilityChart').getContext('2d');
         const fertilityChart = new Chart(ctx, {
             type: 'line',
@@ -525,7 +663,6 @@
 
                 fertilityChart.data.labels.push(reading.time);
                 fertilityChart.data.datasets[0].data.push(reading.health);
-                if(fertilityChart.data.labels.length > 10) { fertilityChart.data.labels.shift(); fertilityChart.data.datasets[0].data.shift(); }
                 fertilityChart.update();
 
                 btn.disabled = false;
@@ -533,7 +670,17 @@
             }, 1200);
         });
 
-        window.onload = () => setLanguage('en');
+        document.getElementById('ai-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendAIMessage();
+        });
+
+        window.onload = () => {
+            setLanguage('en');
+            document.body.addEventListener('click', () => {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+            }, { once: true });
+            setTimeout(triggerConnectSound, 800);
+        };
     </script>
 </body>
 </html>
