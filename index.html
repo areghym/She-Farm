@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>She Farm - Smart Soil Device</title>
+    
+    <script src="https://cdn.tailwindcss.com/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Noto+Sans+Ethiopic:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #059669;
+            --accent: #0f172a;
+        }
+
+        body {
+            background-color: #f8fafc;
+            font-family: 'Inter', 'Noto Sans Ethiopic', sans-serif;
+            color: #0f172a;
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .glass-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+        }
+
+        .tactile-btn {
+            transition: transform 0.1s active;
+            box-shadow: 0 4px 0 #064e3b;
+        }
+        .tactile-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #064e3b;
+        }
+
+        .nav-active {
+            color: var(--primary);
+            border-top: 3px solid var(--primary);
+        }
+
+        .page { display: none; }
+        .page-active { display: block; animation: fadeIn 0.3s ease-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 8px #10b981;
+        }
+
+        .nutrient-bar {
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            overflow: hidden;
+        }
+        .nutrient-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 1s ease-out;
+        }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- Top Header -->
+    <header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100 p-4">
+        <div class="max-w-2xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white shadow-md">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M12 3v18M3 12h18"/></svg>
+                </div>
+                <h1 class="text-md font-black tracking-tighter uppercase" data-key="app_title">She Farm</h1>
+            </div>
+
+            <div class="flex bg-slate-100 rounded-lg p-1">
+                <button onclick="setLanguage('en')" id="btn-en" class="px-3 py-1 rounded-md text-[10px] font-black transition-all bg-emerald-600 text-white">EN</button>
+                <button onclick="setLanguage('am')" id="btn-am" class="px-3 py-1 rounded-md text-[10px] font-black transition-all text-slate-400">አማ</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- PAGE 1: DASHBOARD (SCANNING) -->
+        <section id="page-dashboard" class="page page-active space-y-6">
+            <div class="flex justify-between items-center px-2">
+                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight" data-key="nav_scan">Scanner</h2>
+                <div class="flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full">
+                    <div class="status-dot animate-pulse"></div>
+                    <span class="text-[10px] font-bold text-emerald-700 uppercase" data-key="status_ready">Device Ready</span>
+                </div>
+            </div>
+
+            <!-- Main Control -->
+            <button id="readBtn" class="tactile-btn w-full bg-emerald-600 text-white py-8 rounded-[2rem] flex flex-col items-center justify-center gap-3">
+                <div class="p-3 bg-white/20 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </div>
+                <span class="text-lg font-black tracking-widest" data-key="btn_scan">START SOIL PROBE</span>
+            </button>
+
+            <!-- Primary Metrics -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="glass-card p-6 shadow-sm border-b-4 border-emerald-500">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest" data-key="label_health">Health Score</span>
+                    <div class="flex items-baseline gap-1">
+                        <span id="val-health" class="text-5xl font-black text-slate-800">--</span>
+                        <span class="text-sm font-bold opacity-30">/100</span>
+                    </div>
+                </div>
+                <div class="glass-card p-6 shadow-sm border-b-4 border-blue-500">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest" data-key="label_ph">pH Level</span>
+                    <div>
+                        <span id="val-ph" class="text-5xl font-black text-blue-600">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NPK Grid -->
+            <div class="glass-card p-6 space-y-4">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest" data-key="label_nutrients">Soil Nutrients (NPK)</h3>
+                
+                <div class="space-y-4">
+                    <!-- Nitrogen -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-black text-slate-600">Nitrogen (N)</span>
+                            <span id="val-n" class="text-xs font-bold text-emerald-600">--</span>
+                        </div>
+                        <div class="nutrient-bar">
+                            <div id="bar-n" class="nutrient-fill bg-emerald-500"></div>
+                        </div>
+                    </div>
+                    <!-- Phosphorus -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-black text-slate-600">Phosphorus (P)</span>
+                            <span id="val-p" class="text-xs font-bold text-amber-500">--</span>
+                        </div>
+                        <div class="nutrient-bar">
+                            <div id="bar-p" class="nutrient-fill bg-amber-500"></div>
+                        </div>
+                    </div>
+                    <!-- Potassium -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-black text-slate-600">Potassium (K)</span>
+                            <span id="val-k" class="text-xs font-bold text-purple-500">--</span>
+                        </div>
+                        <div class="nutrient-bar">
+                            <div id="bar-k" class="nutrient-fill bg-purple-500"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card p-6">
+                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4" data-key="label_trend">Fertility Trend</h3>
+                <div class="h-[180px]">
+                    <canvas id="fertilityChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- PAGE 2: LAND PROFILE -->
+        <section id="page-profile" class="page space-y-6">
+            <div class="px-2">
+                <h2 class="text-xl font-black text-slate-800 uppercase tracking-tight" data-key="nav_profile">Land Profile</h2>
+            </div>
+
+            <div class="glass-card overflow-hidden shadow-md">
+                <div class="bg-slate-900 p-6 text-white">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1" data-key="label_land_code">Plot Identity Code</p>
+                            <h3 class="text-2xl font-black tracking-tighter">SF-ET-8821</h3>
+                        </div>
+                        <div class="bg-white/10 p-2 rounded-lg">
+                            <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-4 border-t border-white/10 flex items-center gap-2 text-slate-400">
+                        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                        <span class="text-xs font-mono tracking-tight" id="gps-display">9.0222° N, 38.7468° E</span>
+                    </div>
+                </div>
+
+                <!-- ADVICE SECTION -->
+                <div class="p-6 bg-emerald-50 border-b border-emerald-100">
+                    <div class="flex items-center gap-2 mb-3">
+                        <div class="w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center text-white">
+                            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                        </div>
+                        <span class="text-[10px] font-black text-emerald-800 uppercase tracking-widest" data-key="label_advice">Agronomic Recommendations</span>
+                    </div>
+                    <div id="advice-container" class="space-y-4">
+                        <p id="advice-text" class="text-sm font-medium text-emerald-900 leading-relaxed">
+                            No recent tests found. Perform a scan to receive agronomic guidance.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block" data-key="label_recent">Recent Logs</span>
+                    <div id="history-list" class="space-y-3">
+                        <div class="text-center py-4 text-slate-400 text-xs font-bold italic" data-key="waiting">No data recorded yet.</div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="exportBtn" onclick="generatePDF()" class="w-full py-4 bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg hover:bg-slate-700 transition-colors">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                <span data-key="btn_export">Download PDF Report</span>
+            </button>
+        </section>
+
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-3 z-50">
+        <div class="max-w-2xl mx-auto flex justify-around items-center">
+            <button onclick="showPage('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-1 text-slate-400 transition-all nav-active pt-1">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                <span class="text-[9px] font-black uppercase" data-key="nav_scan">Scan</span>
+            </button>
+            <button onclick="showPage('profile')" id="nav-profile" class="flex flex-col items-center gap-1 text-slate-400 transition-all pt-1">
+                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+                <span class="text-[9px] font-black uppercase" data-key="nav_profile">Profile</span>
+            </button>
+        </div>
+    </nav>
+
+    <script>
+        // --- Sound Engine ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+            if (type === 'click') {
+                osc.frequency.setValueAtTime(800, now); osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'scan') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(150, now);
+                gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 1.2);
+                osc.start(now); osc.stop(now + 1.2);
+            } else if (type === 'done') {
+                osc.frequency.setValueAtTime(440, now); osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            }
+        }
+
+        // --- Agronomic Intelligence Engine ---
+        function getScienceBasedAdvice(reading, lang) {
+            let advice = [];
+            const ph = parseFloat(reading.ph);
+
+            // pH Analysis
+            if (ph < 5.5) {
+                advice.push(lang === 'en' 
+                    ? `[PH ANALYSIS] Critical Acidity (pH ${ph}): Highly acidic soil limits phosphorus availability and risks aluminum toxicity. ACTION: Apply 4-5 tons/ha of Agricultural Lime (CaCO3) to neutralize acidity.`
+                    : `[የፒኤች ትንተና] ከፍተኛ አሲዳማነት (pH ${ph})፡ አፈሩ አሲዳማ በመሆኑ ተክሎች ንጥረ ነገር እንዳያገኙ ያደርጋል። መፍትሄ፡ 4-5 ቶን በሄክታር ኖራ በመጨመር አሲዱን ማመጣጠን ያስፈልጋል።`);
+            } else if (ph > 7.5) {
+                advice.push(lang === 'en'
+                    ? `[PH ANALYSIS] High Alkalinity (pH ${ph}): Alkaline soil can lock micronutrients like Iron and Zinc. ACTION: Incorporate organic compost and consider elemental sulfur (200kg/ha) to lower pH.`
+                    : `[የፒኤች ትንተና] ከፍተኛ አልካላይንነት (pH ${ph})፡ አፈሩ ጨዋማነት ስላለው ተክሎች ብረትና ዚንክ እንዳያገኙ ያግዳል። መፍትሄ፡ ኦርጋኒክ ኮምፖስት እና የሰልፈር ንጥረ ነገር ይጠቀሙ።`);
+            }
+
+            // Nitrogen Analysis
+            if (reading.n < 40) {
+                advice.push(lang === 'en'
+                    ? `[NITROGEN] Deficiency (${reading.n}%): Essential for leafy growth and chlorophyll production. ACTION: Top-dress with 100kg/ha of Urea or integrate leguminous cover crops (beans/peas) for natural fixation.`
+                    : `[ናይትሮጅን] የናይትሮጅን እጥረት (${reading.n}%)፡ ለተክሉ ቅጠል እድገት ወሳኝ ነው። መፍትሄ፡ 100 ኪሎ ዩሪያ በሄክታር በመጨመር ወይም ባቄላና አተርን በማፈራረቅ በመዝራት ማሻሻል ይቻላል።`);
+            }
+
+            // Phosphorus Analysis
+            if (reading.p < 40) {
+                advice.push(lang === 'en'
+                    ? `[PHOSPHORUS] Deficiency (${reading.p}%): Crucial for root development and energy transfer (ATP). ACTION: Apply DAP (Diammonium Phosphate) at 100kg/ha during sowing to stimulate root health.`
+                    : `[ፎስፈረስ] የፎስፈረስ እጥረት (${reading.p}%)፡ ለተክሉ ስር እድገትና ጥንካሬ አስፈላጊ ነው። መፍትሄ፡ በሚዘሩበት ጊዜ 100 ኪሎ DAP በሄክታር ይጠቀሙ።`);
+            }
+
+            // Potassium Analysis
+            if (reading.k < 40) {
+                advice.push(lang === 'en'
+                    ? `[POTASSIUM] Deficiency (${reading.k}%): Important for water regulation and disease resistance. ACTION: Apply Muriate of Potash (MOP) at 50kg/ha to improve fruit/grain quality.`
+                    : `[ፖታሺየም] የፖታሺየም እጥረት (${reading.k}%)፡ ተክሉ በሽታን እንዲቋቋም ይረዳል። መፍትሄ፡ 50 ኪሎ MOP በሄክታር በመጨመር ምርታማነትን ይጨምሩ።`);
+            }
+
+            if (advice.length === 0) {
+                advice.push(lang === 'en'
+                    ? "OPTIMAL: Excellent Soil Health. Balance of nutrients is optimal. Maintain this status with minimal organic inputs and 3-year crop rotation cycles."
+                    : "ጥሩ ሁኔታ፡ በጣም ጥሩ የአፈር ጤና። ንጥረ ነገሮች ተመጣጣኝ ናቸው። ይህንን ለመቀጠል ኦርጋኒክ ማዳበሪያዎችን ይጠቀሙ።");
+            }
+
+            return advice.join('\n\n');
+        }
+
+        // --- PDF Generation ---
+        function generatePDF() {
+            playSound('click');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const dateStr = new Date().toLocaleString();
+            const latest = history[history.length - 1];
+            
+            // 1. Professional Header
+            doc.setFillColor(5, 150, 105); 
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont("helvetica", "bold");
+            doc.text("SHE FARM", 20, 25);
+            
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text("SMART SOIL ANALYSIS & AGRONOMIC REPORT", 20, 32);
+
+            // 2. Metadata
+            doc.setTextColor(15, 23, 42); 
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("REPORT INFORMATION", 20, 50);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Farmer ID: SF-COMM-8821`, 20, 56);
+            doc.text(`Plot Location: Addis Ababa Region (9.0222 N, 38.7468 E)`, 20, 62);
+            doc.text(`Generated: ${dateStr}`, 20, 68);
+
+            // 3. Results Table
+            doc.setFont("helvetica", "bold");
+            doc.text("ANALYTICAL RESULTS", 20, 80);
+            
+            const tableData = history.slice().reverse().map((item, idx) => [
+                item.time,
+                item.health,
+                item.ph,
+                item.n + "%",
+                item.p + "%",
+                item.k + "%"
+            ]);
+
+            doc.autoTable({
+                startY: 85,
+                head: [['Time', 'Health', 'pH', 'Nitrogen', 'Phosphorus', 'Potassium']],
+                body: tableData,
+                headStyles: { fillColor: [5, 150, 105] },
+                margin: { left: 20, right: 20 }
+            });
+
+            // 4. Detailed Agronomic Recommendations (THE CORE REQUEST)
+            const finalY = doc.lastAutoTable.finalY || 100;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(12);
+            doc.text("AGRONOMIC RECOMMENDATIONS & SCIENCE EXPLANATION", 20, finalY + 15);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            
+            // Get the advice currently shown in the app UI
+            const adviceText = document.getElementById('advice-text').innerText;
+            
+            // Auto-wrap text for PDF
+            const splitAdvice = doc.splitTextToSize(adviceText, 170);
+            
+            // Draw a light background for advice
+            doc.setFillColor(248, 250, 252);
+            const adviceHeight = (splitAdvice.length * 5) + 10;
+            doc.rect(20, finalY + 18, 170, adviceHeight, 'F');
+            
+            doc.setTextColor(5, 46, 22); // Dark green text
+            doc.text(splitAdvice, 25, finalY + 25);
+
+            // 5. Footer
+            const pageHeight = doc.internal.pageSize.height;
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text("She Farm Intelligence Platform - Automated Agronomic Engine v2.1", 20, pageHeight - 15);
+            doc.text("Page 1 of 1", 180, pageHeight - 15);
+
+            doc.save(`SheFarm_Full_Report_${Date.now()}.pdf`);
+        }
+
+        // --- i18n ---
+        const i18n = {
+            en: {
+                app_title: "She Farm",
+                btn_scan: "START SOIL PROBE",
+                btn_export: "Download PDF Report",
+                label_land_code: "Plot Identity Code",
+                status_ready: "Device Ready",
+                label_advice: "Agronomic Recommendations",
+                label_health: "Health Score",
+                label_ph: "pH Level",
+                label_nutrients: "Soil Nutrients (NPK)",
+                label_trend: "Fertility Trend",
+                label_recent: "Recent Logs",
+                nav_scan: "Scan",
+                nav_profile: "Profile",
+                waiting: "No data recorded yet.",
+                scanning: "ANALYZING SAMPLES...",
+                empty_advice: "No recent tests found. Perform a scan to receive agronomic guidance."
+            },
+            am: {
+                app_title: "ሺ ፋርም",
+                btn_scan: "የአፈር ምርመራ ጀምር",
+                btn_export: "ፒዲኤፍ ሪፖርት አውርድ",
+                label_land_code: "የመሬት ኮድ",
+                status_ready: "ዝግጁ",
+                label_advice: "የእርሻ ምክሮች እና ትንተና",
+                label_health: "የአፈር ጤና",
+                label_ph: "የፒኤች (pH) መጠን",
+                label_nutrients: "ንጥረ ነገሮች (NPK)",
+                label_trend: "የለምነት ሂደት",
+                label_recent: "የቅርብ ጊዜ ምዝገባ",
+                nav_scan: "ምርመራ",
+                nav_profile: "መገለጫ",
+                waiting: "ምንም መረጃ የለም።",
+                scanning: "በመተንተን ላይ...",
+                empty_advice: "ምንም የቅርብ ጊዜ ምርመራ አልተገኘም። ምክር ለማግኘት ምርመራ ያድርጉ።"
+            }
+        };
+
+        let currentLang = 'en';
+        let history = [];
+
+        function setLanguage(lang) {
+            playSound('click');
+            currentLang = lang;
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if (i18n[lang][key]) el.innerText = i18n[lang][key];
+            });
+            
+            if (history.length > 0) {
+                document.getElementById('advice-text').innerText = getScienceBasedAdvice(history[history.length-1], currentLang);
+            } else {
+                document.getElementById('advice-text').innerText = i18n[currentLang].empty_advice;
+            }
+
+            document.getElementById('btn-en').className = `px-3 py-1 rounded-md text-[10px] font-black transition-all ${lang === 'en' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`;
+            document.getElementById('btn-am').className = `px-3 py-1 rounded-md text-[10px] font-black transition-all ${lang === 'am' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`;
+        }
+
+        function showPage(pageId) {
+            playSound('click');
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('page-active'));
+            document.getElementById(`page-${pageId}`).classList.add('page-active');
+            document.getElementById('nav-dashboard').classList.remove('nav-active');
+            document.getElementById('nav-profile').classList.remove('nav-active');
+            document.getElementById(`nav-${pageId}`).classList.add('nav-active');
+        }
+
+        // --- Logic ---
+        const ctx = document.getElementById('fertilityChart').getContext('2d');
+        const fertilityChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ data: [], borderColor: '#059669', borderWidth: 3, tension: 0.4, fill: false, pointRadius: 0 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { min: 40, max: 100, ticks: { display: false }, grid: { display: false } }, x: { grid: { display: false } } } }
+        });
+
+        document.getElementById('readBtn').addEventListener('click', function() {
+            const btn = this;
+            btn.disabled = true;
+            btn.querySelector('span').innerText = i18n[currentLang].scanning;
+            playSound('scan');
+            
+            setTimeout(() => {
+                const n = Math.floor(Math.random() * 60 + 20);
+                const p = Math.floor(Math.random() * 60 + 20);
+                const k = Math.floor(Math.random() * 60 + 20);
+                const health = Math.floor((n + p + k) / 3);
+                
+                const reading = {
+                    health, n, p, k,
+                    ph: (Math.random() * 3 + 5).toFixed(1),
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+
+                history.push(reading);
+                
+                document.getElementById('val-health').innerText = reading.health;
+                document.getElementById('val-ph').innerText = reading.ph;
+                document.getElementById('val-n').innerText = reading.n + '%';
+                document.getElementById('val-p').innerText = reading.p + '%';
+                document.getElementById('val-k').innerText = reading.k + '%';
+                document.getElementById('bar-n').style.width = reading.n + '%';
+                document.getElementById('bar-p').style.width = reading.p + '%';
+                document.getElementById('bar-k').style.width = reading.k + '%';
+                
+                playSound('done');
+                document.getElementById('advice-text').innerText = getScienceBasedAdvice(reading, currentLang);
+
+                const list = document.getElementById('history-list');
+                list.innerHTML = history.slice().reverse().map(item => `
+                    <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] font-black">${item.health}</div>
+                            <div>
+                                <p class="text-[10px] font-black text-slate-800">${item.time}</p>
+                                <p class="text-[8px] font-bold text-slate-400 uppercase">NPK: ${item.n}/${item.p}/${item.k} | pH: ${item.ph}</p>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                fertilityChart.data.labels.push(reading.time);
+                fertilityChart.data.datasets[0].data.push(reading.health);
+                if(fertilityChart.data.labels.length > 10) { fertilityChart.data.labels.shift(); fertilityChart.data.datasets[0].data.shift(); }
+                fertilityChart.update();
+
+                btn.disabled = false;
+                btn.querySelector('span').innerText = i18n[currentLang].btn_scan;
+            }, 1200);
+        });
+
+        window.onload = () => setLanguage('en');
+    </script>
+</body>
+</html>
